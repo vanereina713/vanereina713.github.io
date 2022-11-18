@@ -1,0 +1,87 @@
+--Ejercicio 1
+--Si el DBA es solo una persona se le daría la contraseña  y el usuario sa, esto para tener el control del servidor, para que se especifica que tiene acceso a TODO el servidor de bases de datos
+--Si el DBA es alguien adiciona al DBA formal, se le pueden otorgar los máximos permisos utilizando alter server role como se especifica a continuación:
+-----Se crea el login del dba
+--create login dbaeditorial with password = 'passwordeditorial' must_change, check_expiration = on
+--alter server role servereditorial add member dbaeditorial --server role maximos permisos
+--Se tiene que tener cuidado ya que si se le otorga la contraseña y usuario sa a alguien ajeno puede perjudicar los datos de la editorial
+
+
+--Ejercicio 2
+--Se crea el login del contador
+create login contador with password = 'passwordcontador' must_change, check_expiration = on
+--Se agrega como usuario
+use editorial2
+create user contador for login contador
+--Se le concede permiso para leer y escribir datos en todas las bases de datos actuales y a futuro
+alter role db_datareader add member contador --ya que es a todas las bases de datos que existen y puedan existir se usa rol predefinido
+alter role db_datawriter add member contador --ya que es a todas las bases de datos que existen y puedan existir se usa rol predefinido
+
+
+--Ejercicio 3
+-----Login auditor
+create login auditor with password = 'passwordauditor' must_change, check_expiration = on
+-----se crea el user para la base de datos
+create user auditor for login auditor
+-----Vista que contiene solo los nombre y el beneficio total del libro
+go
+create view BeneficioTotalLibro as 
+	select Libros.Nombre, sum((Ventas.Cantidad*Ventas.PrecioUnitario)- (Ventas.Cantidad*Libros.CostoUnitario)) as BeneficioTotal --dado que el total de venta es la cantidad que se compro por el precio unitario
+	from Libros inner join Ventas on Libros.IdLibro = Ventas.IdLibro
+	group by Libros.IdLibro, Libros.Nombre
+with check option
+go
+-----se le concede el permiso de leer
+grant select on BeneficioTotalLibro to auditor
+
+
+
+--Ejercicio 4 y 5
+-------- my books
+create login mybooks with password = 'mybookspassword' must_change, check_expiration = on
+use editorial2
+create user mybooks for login mybooks --Se agrega usuario
+create role ingles --se usa role para agrupar las páginas web según el idioma
+alter role ingles add member mybooks --Se agrega mybooks a el role ingles
+
+--------vista libros en inglés
+go 
+create view catalogoIngles as
+	select Libros.Nombre, Libros.Paginas, Promociones.Nombre, Promociones.Descripcion, Promociones.Idioma
+	from Libros inner join Promociones on Libros.Idioma = Promociones.Idioma
+	where Libros.Idioma = 0 --Solo para referirse a los libros en ingles
+with check option
+go
+
+grant select on catalogoIngles to ingles ---Se le concede el permiso a el CatalogoIngles a el rol ingles
+---Las nuevas páginas se agregan solo con alter role ingles add member ____
+
+-------- libros.com 
+create login libroscom with password = 'libros.compassword' must_change, check_expiration = on
+use editorial2
+create user libroscom for login libroscom
+create role español
+alter role español add member libroscom
+
+--------vista libros en español
+go
+create view catalogoEspañol as
+	select Libros.Nombre, Libros.Paginas, Promociones.Nombre, Promociones.Descripcion, Promociones.Idioma
+	from Libros inner join Promociones on Libros.Idioma = Promociones.Idioma
+	where Libros.Idioma = 1 --solo para referirse a los libros en español
+go
+
+grant select on catalogoEspañol to español --- Se le concede el permiso al Catalogo en Espalo al rol español
+
+
+--------vista  y role para los libros ingles y español
+--rol vista ingles y español
+create role inglesyespañol
+go
+create view catalogoambos as
+	select Libros.Nombre, Libros.Paginas, Promociones.Nombre, Promociones.Descripcion, Promociones.Idioma
+	from Libros inner join Promociones on Libros.Idioma = Promociones.Idioma --Ya que las promociones son para libros en español y libros en inglés
+with check option
+go
+
+grant select on catalogoambos to inglesyespañol --permiso al rol ingles y español
